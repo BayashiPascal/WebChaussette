@@ -1,14 +1,14 @@
-<?php 
+<?php
 // ------------------ api.php ---------------------
 
 // Start the PHP session
 session_start();
 
 // Switch the display of errors
-//ini_set('display_errors', 1);
-//ini_set('display_startup_errors', 1);
-//error_reporting(E_ALL);
-error_reporting(E_NONE);
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+//error_reporting(E_NONE);
 
 // Path to the SQLite3 database
 $pathDB = "./webchaussette.db";
@@ -36,6 +36,9 @@ function CreateDatabase(
       "CREATE TABLE Version (" .
       "  Ref INTEGER PRIMARY KEY," .
       "  Label TEXT NOT NULL)",
+      "CREATE TABLE RequestLogin (" .
+      "  Ref INTEGER PRIMARY KEY," .
+      "  Name TEXT NOT NULL)"];
     foreach ($cmds as $cmd) {
 
       $success = $db->exec($cmd);
@@ -119,6 +122,58 @@ function UpgradeDB(
   }
 }
 
+// Process a request for login
+// Input:
+//   name: name of the user
+function RequestLogin(
+  $db,
+  $name) {
+
+  try {
+
+    // Add the request
+    $cmd = "INSERT INTO RequestLogin (Name) VALUES ('" . $name . "')";
+    $success = $db->exec($cmd);
+    if ($success === false)
+      throw new Exception("exec() failed for " . $cmd);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return "";
+
+}
+
+// Get the request
+function GetRequest(
+  $db) {
+
+  $res = array();
+
+  try {
+
+    // Get the requests
+    $cmd = "SELECT Name FROM RequestLogin";
+    $rows = $db->query($cmd);
+    if ($rows === false) throw new Exception("query(" . $cmd . ") failed");
+    while ($row = $rows->fetchArray())
+      array_push($res, $row["Name"]);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return $res;
+
+}
+
 // -------------------------------- Main block --------------------------
 
 try {
@@ -154,6 +209,18 @@ try {
     if ($_POST["action"] == "version") {
 
       $res = GetVersion($db);
+      echo json_encode($res);
+
+    // Else, if the user requested to login
+    } else if ($_POST["action"] == "login") {
+
+      $res = RequestLogin($db, $_POST["name"]);
+      echo json_encode($res);
+
+    // Else, if the user requested the list of request
+    } else if ($_POST["action"] == "getRequest") {
+
+      $res = GetRequest($db);
       echo json_encode($res);
 
     // If the user requested an unknown or invalid action

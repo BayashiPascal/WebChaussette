@@ -1,32 +1,35 @@
-function WCCClientMain() {
+function WCClientMain() {
   try {
 
-    // Create the request
-    var form = document.createElement("form");
-    form.setAttribute("method", "post");
-    var action = document.createElement("input");
-    action.setAttribute("type", "text");
-    action.setAttribute("name", "action");
-    action.setAttribute("value", "measures");
-    form.appendChild(action);
-    var project = document.createElement("input");
-    project.setAttribute("type", "text");
-    project.setAttribute("name", "project");
-    project.setAttribute("value", $("#selProject option:selected").html());
-    form.appendChild(project);
-    var last = document.createElement("input");
-    last.setAttribute("type", "text");
-    last.setAttribute("name", "last");
-    last.setAttribute("value", "100");
-    form.appendChild(last);
+    // Create the WebChaussette client
+    window.wcClient = new WCClient();
 
-    // Send the request
-    HTTPPostRequest("./api.php", form, UpdateData);
+    // Start the main loop of the client
+    setInterval(WCClientLoop, 5000);
 
   } catch (err) {
     console.log(err.stack);
   }
 }
+
+function WCServerMain() {
+  try {
+
+    // Create the WebChaussette server
+    window.wcServer = new WCServer();
+
+    // Start the main loop of the server
+    setInterval(WCServerLoop, 5000);
+
+  } catch (err) {
+    console.log(err.stack);
+  }
+}
+
+function WCClientLoop() {window.wcClient.Loop();}
+function WCClientLogin(ret) {window.wcClient.Login(ret);}
+function WCServerLoop() {window.wcServer.Loop();}
+function WCServerGetRequest(ret) {window.wcServer.GetRequest(ret);}
 
 function HTTPPostRequest(url, form, handler) {
   try {
@@ -45,36 +48,23 @@ function HTTPPostRequest(url, form, handler) {
       // If the request is ready
       if (this.readyState == 4) {
         if (this.status == 200) {
-
-          // The request was successful, return the reply data
           var returnedData = {};
           try {
             returnedData = JSON.parse(this.responseText);
           } catch(err) {
-            // Remove the displayed data
-            $("#divData").empty();
             console.log(this.responseText);
             returnedData = JSON.parse('{"err":"JSON.parse failed."}');
           }
-
         } else {
-
-          // Remove the displayed data
-          $("#divData").empty();
-
           // The request failed, return error as JSON
           var returnedData = 
             JSON.parse('{"err":"HTTPRequest failed : ' + 
               this.status + '"}');
-
         }
 
-        this._handler(returnedData);
+        handler(returnedData);
 
       } else {
-
-        // Remove the displayed data
-        $("#divData").empty();
 
       }
 
@@ -91,69 +81,94 @@ function HTTPPostRequest(url, form, handler) {
 
 }
 
-function UpdateData(ret) {
-  try {
-
-    // If the request was successful
-    if (ret["ret"] == "0") {
-
-      // Create a table containing the data
-      var tableData = "";
-      tableData += "<table>";
-      tableData += "<tr>";
-      // Metric labels in the header
-      for (label in ret["labels"]) {
-        tableData += "<th>";
-        tableData += ret["labels"][label];
-        tableData += "</th>";
-      }
-      tableData += "</tr>";
-      // Loop on measures
-      for (measure in ret["values"]) {
-        tableData += "<tr>";
-        // Loop on metrics in the measure
-        for (value in ret["values"][measure]) {
-          tableData += "<td>";
-          tableData += ret["values"][measure][value];
-          tableData += "</td>";
-        }
-        tableData += "</tr>";
-      }
-      
-      tableData += "</table>";
-
-      // Set the data in divData
-      $("#divData").html(tableData);
-
-    } else {
-
-      // Remove the displayed data
-      $("#divData").empty();
-
-    }
-
-  } catch (err) {
-    console.log(err.stack);
-  }
-
-}
-
 // ------------ WCClient class
 
 function WCClient() {
   try {
 
-    this.prop = "";
+    this.status = "request login";
 
   } catch (err) {
     console.log(err.stack);
   }
 }
 
-WCClient.prototype.Login = function() {
+WCClient.prototype.Loop = function() {
   try {
 
+    if (this.status == "request login") {
+
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","login");
+      form.appendChild(action);
+      var name = document.createElement("input");
+      name.setAttribute("type", "text");
+      name.setAttribute("name", "name");
+      name.setAttribute("value","pascal");
+      form.appendChild(name);
+      HTTPPostRequest(url, form, WCClientLogin);
+
+    } else if (this.status == "wait login") {
+
+    } else if (this.status == "idle") {
+    }
+
   } catch (err) {
     console.log(err.stack);
   }
 }
+
+WCClient.prototype.Login = function(ret) {
+  try {
+
+    this.status = "wait login";
+
+  } catch (err) {
+    console.log(err.stack);
+  }
+}
+
+// ------------ WCServer class
+
+function WCServer() {
+  try {
+
+
+  } catch (err) {
+    console.log(err.stack);
+  }
+}
+
+WCServer.prototype.Loop = function() {
+  try {
+
+    var url = "./api.php";
+    var form = document.createElement("form");
+    form.setAttribute("method", "post");
+    var action = document.createElement("input");
+    action.setAttribute("type", "text");
+    action.setAttribute("name", "action");
+    action.setAttribute("value","getRequest");
+    form.appendChild(action);
+    HTTPPostRequest(url, form, WCServerGetRequest);
+
+  } catch (err) {
+    console.log(err.stack);
+  }
+}
+
+WCServer.prototype.GetRequest = function(ret) {
+  try {
+
+    $("#divMain").html(JSON.stringify(ret));
+
+  } catch (err) {
+    console.log(err.stack);
+  }
+}
+
