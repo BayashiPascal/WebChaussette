@@ -37,7 +37,7 @@ session_start();
       try {
 
         // Start the WebChaussette server
-        WCServerMain("<?php echo session_id();?>");
+        WCServerMain();
 
       } catch (err) {
         console.log(err.stack);

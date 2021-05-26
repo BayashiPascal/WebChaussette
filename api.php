@@ -251,6 +251,32 @@ function CheckLogin(
 
 }
 
+// Get the opened session
+function GetSession(
+  $db) {
+
+  $res = array();
+
+  try {
+
+    // Get the session
+    $cmd = "SELECT Ref, Key FROM SessionKey";
+    $rows = $db->query($cmd);
+    if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
+    while ($row = $rows->fetchArray())
+      array_push($res, $row);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return $res;
+
+}
+
 // Get the waiting request
 function GetRequest(
   $db,
@@ -261,13 +287,11 @@ function GetRequest(
   try {
 
     // Get the requests
-    //$cmd = "SELECT Ref, Name FROM RequestLogin WHERE Key = '" . $key . "'";
-    $cmd = "SELECT Ref, Name, Key FROM RequestLogin";
+    $cmd = "SELECT Ref, Name FROM RequestLogin WHERE Key = '" . $key . "'";
     $rows = $db->query($cmd);
     if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
     while ($row = $rows->fetchArray())
       array_push($res, $row);
-      array_push($res, $key);
 
   } catch (Exception $e) {
 
@@ -342,6 +366,12 @@ try {
     if ($_POST["action"] == "version") {
 
       $res = GetVersion($db);
+      echo json_encode($res);
+
+    // Else, if the server requested the session
+    } else if ($_POST["action"] == "getSession") {
+
+      $res = CreateSession($db);
       echo json_encode($res);
 
     // Else, if the server requested a new session

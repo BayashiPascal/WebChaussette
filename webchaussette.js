@@ -16,6 +16,16 @@ const animateCSS = (element, animation, prefix = 'animate__') =>
     node.addEventListener('animationend', handleAnimationEnd, {once: true});
   });
 
+function makeId(length) {
+  var result = [];
+  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  for ( var i = 0; i < length; i++ ) {
+    result.push(characters.charAt(Math.floor(Math.random() * 
+    characters.length)));
+  }
+  return result.join('');
+}
+
 function WCClientMain() {
   try {
 
@@ -30,11 +40,11 @@ function WCClientMain() {
   }
 }
 
-function WCServerMain(sessionId) {
+function WCServerMain() {
   try {
 
     // Create the WebChaussette server
-    window.wcServer = new WCServer(sessionId);
+    window.wcServer = new WCServer();
 
     // Start the main loop of the server
     setInterval(WCServerLoop, 5000);
@@ -48,6 +58,7 @@ function WCClientLoop() {window.wcClient.Loop();}
 function WCClientLogin(ret) {window.wcClient.Login(ret);}
 function WCClientCheckLogin(ret) {window.wcClient.CheckLogin(ret);}
 function WCServerLoop() {window.wcServer.Loop();}
+function WCServerGetSession(ret) {window.wcServer.GetSession(ret);}
 function WCServerGetRequest(ret) {window.wcServer.GetRequest(ret);}
 function WCServerGetUser(ret) {window.wcServer.GetUser(ret);}
 
@@ -171,25 +182,108 @@ function HTTPPostRequest(url, form, handler) {
 
 // ------------ WCClient class
 
-function WCClient() {
-  try {
+class WCClient {
 
-    this.status = "request login";
-    this.name = "";
-    this.key = "";
+  constructor() {
+    try {
 
-  } catch (err) {
-    console.log(err.stack);
+      this.status = "request login";
+      this.name = "";
+      this.key = "";
+
+    } catch (err) {
+      console.log(err.stack);
+    }
   }
+
+  Loop() {
+    try {
+
+      if (this.status == "request login") {
+
+
+      } else if (this.status == "wait login") {
+
+        var url = "./api.php";
+        var form = document.createElement("form");
+        form.setAttribute("method", "post");
+        var action = document.createElement("input");
+        action.setAttribute("type", "text");
+        action.setAttribute("name", "action");
+        action.setAttribute("value","checkLogin");
+        form.appendChild(action);
+        var name = document.createElement("input");
+        name.setAttribute("type", "text");
+        name.setAttribute("name", "name");
+        name.setAttribute("value","pascal");
+        form.appendChild(name);
+        var key = document.createElement("input");
+        key.setAttribute("type", "text");
+        key.setAttribute("name", "key");
+        key.setAttribute("value", this.key);
+        form.appendChild(key);
+        HTTPPostRequest(url, form, WCClientCheckLogin);
+
+      } else if (this.status == "denied login") {
+
+      } else if (this.status == "active") {
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  Login(ret) {
+    try {
+
+      if (ret["err"] != 0) {
+
+        animateCSS('#divLoginWait', 'bounceOut').then((message) => {
+          $("#divLoginWait").css("display", "none");
+          animateCSS('#divLoginDenied', 'bounceIn');
+          $("#divLoginDenied").css("display", "block");
+        });
+        this.status = "denied login";
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  CheckLogin(ret) {
+    try {
+
+      if (ret["err"] == 0) {
+
+        animateCSS('#divLoginWait', 'bounceOut').then((message) => {
+          $("#divLoginWait").css("display", "none");
+          animateCSS('#divLoginGranted', 'bounceIn');
+          $("#divLoginGranted").css("display", "block");
+        });
+        this.status = "active";
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
 }
 
-WCClient.prototype.Loop = function() {
-  try {
+// ------------ WCServer class
 
-    if (this.status == "request login") {
+class WCServer {
 
+  constructor() {
+    try {
 
-    } else if (this.status == "wait login") {
+      this.sessionId = makeId(10);
+  console.log("new "+this.sessionId);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -197,150 +291,95 @@ WCClient.prototype.Loop = function() {
       var action = document.createElement("input");
       action.setAttribute("type", "text");
       action.setAttribute("name", "action");
-      action.setAttribute("value","checkLogin");
+      action.setAttribute("value","createSession");
       form.appendChild(action);
-      var name = document.createElement("input");
-      name.setAttribute("type", "text");
-      name.setAttribute("name", "name");
-      name.setAttribute("value","pascal");
-      form.appendChild(name);
       var key = document.createElement("input");
       key.setAttribute("type", "text");
       key.setAttribute("name", "key");
-      key.setAttribute("value", this.key);
+      key.setAttribute("value", this.sessonId);
       form.appendChild(key);
-      HTTPPostRequest(url, form, WCClientCheckLogin);
+      HTTPPostRequest(url, form, null);
 
-    } else if (this.status == "denied login") {
-
-    } else if (this.status == "active") {
-
+    } catch (err) {
+      console.log(err.stack);
     }
-
-  } catch (err) {
-    console.log(err.stack);
   }
-}
 
-WCClient.prototype.Login = function(ret) {
-  try {
+  Loop() {
+    try {
 
-    if (ret["err"] != 0) {
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","getSession");
+      form.appendChild(action);
+      HTTPPostRequest(url, form, WCServerGetSession);
 
-      animateCSS('#divLoginWait', 'bounceOut').then((message) => {
-        $("#divLoginWait").css("display", "none");
-        animateCSS('#divLoginDenied', 'bounceIn');
-        $("#divLoginDenied").css("display", "block");
-      });
-      this.status = "denied login";
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","getRequest");
+      form.appendChild(action);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      key.setAttribute("value", this.sessionId);
+      form.appendChild(key);
+      HTTPPostRequest(url, form, WCServerGetRequest);
 
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","getUser");
+      form.appendChild(action);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      key.setAttribute("value", this.sessionId);
+      form.appendChild(key);
+      HTTPPostRequest(url, form, WCServerGetUser);
+
+    } catch (err) {
+      console.log(err.stack);
     }
-
-  } catch (err) {
-    console.log(err.stack);
   }
-}
 
-WCClient.prototype.CheckLogin = function(ret) {
-  try {
+  GetSession(ret) {
+    try {
 
-    if (ret["err"] == 0) {
+      //$("#divWaitingRequests").html(JSON.stringify(ret));
 
-      animateCSS('#divLoginWait', 'bounceOut').then((message) => {
-        $("#divLoginWait").css("display", "none");
-        animateCSS('#divLoginGranted', 'bounceIn');
-        $("#divLoginGranted").css("display", "block");
-      });
-      this.status = "active";
-
+    } catch (err) {
+      console.log(err.stack);
     }
-
-  } catch (err) {
-    console.log(err.stack);
   }
-}
 
-// ------------ WCServer class
+  GetRequest(ret) {
+    try {
 
-function WCServer(sessionId) {
-  try {
+      $("#divWaitingRequests").html(JSON.stringify(ret));
 
-    this.sessionId = sessionId;
-
-    var url = "./api.php";
-    var form = document.createElement("form");
-    form.setAttribute("method", "post");
-    var action = document.createElement("input");
-    action.setAttribute("type", "text");
-    action.setAttribute("name", "action");
-    action.setAttribute("value","createSession");
-    form.appendChild(action);
-    var key = document.createElement("input");
-    key.setAttribute("type", "text");
-    key.setAttribute("name", "key");
-    key.setAttribute("value", this.sessonId);
-    form.appendChild(key);
-    HTTPPostRequest(url, form, null);
-
-  } catch (err) {
-    console.log(err.stack);
+    } catch (err) {
+      console.log(err.stack);
+    }
   }
-}
 
-WCServer.prototype.Loop = function() {
-  try {
+  GetUser(ret) {
+    try {
 
-    var url = "./api.php";
-    var form = document.createElement("form");
-    form.setAttribute("method", "post");
-    var action = document.createElement("input");
-    action.setAttribute("type", "text");
-    action.setAttribute("name", "action");
-    action.setAttribute("value","getRequest");
-    form.appendChild(action);
-    var key = document.createElement("input");
-    key.setAttribute("type", "text");
-    key.setAttribute("name", "key");
-    key.setAttribute("value", window.wcServer.sessonId);
-    form.appendChild(key);
-    HTTPPostRequest(url, form, WCServerGetRequest);
+      $("#divConnectedUsers").html(JSON.stringify(ret));
 
-    var form = document.createElement("form");
-    form.setAttribute("method", "post");
-    var action = document.createElement("input");
-    action.setAttribute("type", "text");
-    action.setAttribute("name", "action");
-    action.setAttribute("value","getUser");
-    form.appendChild(action);
-    var key = document.createElement("input");
-    key.setAttribute("type", "text");
-    key.setAttribute("name", "key");
-    key.setAttribute("value", window.wcServer.sessonId);
-    form.appendChild(key);
-    HTTPPostRequest(url, form, WCServerGetUser);
-
-  } catch (err) {
-    console.log(err.stack);
+    } catch (err) {
+      console.log(err.stack);
+    }
   }
+
 }
-
-WCServer.prototype.GetRequest = function(ret) {
-  try {
-
-    $("#divWaitingRequests").html(JSON.stringify(ret));
-
-  } catch (err) {
-    console.log(err.stack);
-  }
-}
-
-WCServer.prototype.GetUser = function(ret) {
-  try {
-
-    $("#divConnectedUsers").html(JSON.stringify(ret));
-
-  } catch (err) {
-    console.log(err.stack);
-  }
-}
-
