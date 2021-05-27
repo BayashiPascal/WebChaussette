@@ -404,7 +404,6 @@ console.log(this.sessionKey);
           btnClose.onclick = WCServerSessionClose;
           divSession.append(btnClose);
           $("#divSessions").append(divSession);
-          //animateCSS("#divSession" + session["Ref"], 'bounceIn');
 
         }
 
@@ -412,7 +411,7 @@ console.log(this.sessionKey);
 
           this.sessionRef = session["Ref"];
           this.sessionKey = session["Key"];
-          divSession.className = "divCurrentSession";
+          $("#divSession" + this.sessionRef).addClass("divCurrentSession");
 
         }
 
@@ -441,6 +440,22 @@ console.log(this.sessionKey);
   SessionClose(sessionRef) {
     try {
 
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","closeSession");
+      form.appendChild(action);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      var sessionKey = this.GetSessionKey(sessionRef);
+      key.setAttribute("value", sessionKey);
+      form.appendChild(key);
+      HTTPPostRequest(url, form, null);
+
       if (this.sessionRef == sessionRef) {
 
         this.sessionKey = "0";
@@ -457,7 +472,7 @@ console.log(this.sessionKey);
 
   GetRequest(ret) {
     try {
-
+console.log(ret);
       //$("#divWaitingRequests").html(JSON.stringify(ret));
 
     } catch (err) {

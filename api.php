@@ -156,6 +156,40 @@ function CreateSession(
 
 }
 
+// Close a session
+// Input:
+//   key: the session key
+function CloseSession(
+  $db,
+  $key) {
+
+  try {
+
+    // Close the session
+    $cmd = "DELETE FROM RequestLogin WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+    $cmd = "DELETE FROM Connection WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+    $cmd = "DELETE FROM SessionKey WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return "";
+
+}
+
 // Process a request for login
 // Input:
 //   key: session key
@@ -175,7 +209,7 @@ function RequestLogin(
     $rows = $db->query($cmd);
     if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
     $row = $rows->fetchArray();
-    if ($row != false)
+    if ($row == false)
       $res["err"] = 1;
 
     // Check the name doesn't exist for this session
@@ -383,6 +417,13 @@ try {
       isset($_POST["key"]) and $_POST["key"] != "") {
 
       $res = CreateSession($db, $_POST["key"]);
+      echo json_encode($res);
+
+    // Else, if the server requested to close session
+    } else if ($_POST["action"] == "closeSession" and
+      isset($_POST["key"]) and $_POST["key"] != "") {
+
+      $res = CloseSession($db, $_POST["key"]);
       echo json_encode($res);
 
     // Else, if the user requested to login
