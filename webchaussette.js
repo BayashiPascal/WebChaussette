@@ -16,16 +16,6 @@ const animateCSS = (element, animation, prefix = 'animate__') =>
     node.addEventListener('animationend', handleAnimationEnd, {once: true});
   });
 
-function makeId(length) {
-  var result = [];
-  var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for ( var i = 0; i < length; i++ ) {
-    result.push(characters.charAt(Math.floor(Math.random() * 
-    characters.length)));
-  }
-  return result.join('');
-}
-
 function WCClientMain() {
   try {
 
@@ -57,10 +47,13 @@ function WCServerMain() {
 function WCClientLoop() {window.wcClient.Loop();}
 function WCClientLogin(ret) {window.wcClient.Login(ret);}
 function WCClientCheckLogin(ret) {window.wcClient.CheckLogin(ret);}
+function WCServerCreateSession() {window.wcServer.CreateSession();}
 function WCServerLoop() {window.wcServer.Loop();}
 function WCServerGetSession(ret) {window.wcServer.GetSession(ret);}
 function WCServerGetRequest(ret) {window.wcServer.GetRequest(ret);}
 function WCServerGetUser(ret) {window.wcServer.GetUser(ret);}
+function WCServerSessionShow(event) {window.wcServer.SessionShow(event.target.sessionRef);};
+function WCServerSessionClose(event) {window.wcServer.SessionClose(event.target.sessionRef);};
 
 function WCClientRequestLogin() {
 
@@ -282,8 +275,30 @@ class WCServer {
   constructor() {
     try {
 
-      this.sessionId = makeId(10);
-  console.log("new "+this.sessionId);
+      this.sessionRef = 0;
+      this.sessionKey = "0";
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  MakeId(length) {
+
+    var result = [];
+    var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for ( var i = 0; i < length; i++ ) {
+      result.push(characters.charAt(Math.floor(Math.random() * 
+      characters.length)));
+    }
+    return result.join('');
+
+  }
+
+  CreateSession() {
+    try {
+
+      var newSessionId = this.MakeId(10);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -296,7 +311,7 @@ class WCServer {
       var key = document.createElement("input");
       key.setAttribute("type", "text");
       key.setAttribute("name", "key");
-      key.setAttribute("value", this.sessonId);
+      key.setAttribute("value", newSessionId);
       form.appendChild(key);
       HTTPPostRequest(url, form, null);
 
@@ -307,7 +322,7 @@ class WCServer {
 
   Loop() {
     try {
-
+console.log(this.sessionKey);
       var url = "./api.php";
       var form = document.createElement("form");
       form.setAttribute("method", "post");
@@ -329,7 +344,7 @@ class WCServer {
       var key = document.createElement("input");
       key.setAttribute("type", "text");
       key.setAttribute("name", "key");
-      key.setAttribute("value", this.sessionId);
+      key.setAttribute("value", this.sessionKey);
       form.appendChild(key);
       HTTPPostRequest(url, form, WCServerGetRequest);
 
@@ -343,7 +358,7 @@ class WCServer {
       var key = document.createElement("input");
       key.setAttribute("type", "text");
       key.setAttribute("name", "key");
-      key.setAttribute("value", this.sessionId);
+      key.setAttribute("value", this.sessionKey);
       form.appendChild(key);
       HTTPPostRequest(url, form, WCServerGetUser);
 
@@ -352,10 +367,88 @@ class WCServer {
     }
   }
 
+  GetSessionKey(ref) {
+    try {
+      for (const [iSession, session] of Object.entries(this.sessions)) {
+        if (session["Ref"] == ref) return session["Key"];
+      }
+      return "";
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
   GetSession(ret) {
     try {
 
-      //$("#divWaitingRequests").html(JSON.stringify(ret));
+      this.sessions = ret;
+
+      for (const [iSession, session] of Object.entries(this.sessions)) {
+
+        if ($("#divSession" + session["Ref"]).length == 0) {
+
+          var divSession = document.createElement("div");
+          divSession.id = "divSession" + session["Ref"];
+          var sessionKey = document.createTextNode(session["Key"]);
+          divSession.append(sessionKey);
+          var btnShow = document.createElement("input");
+          btnShow.type = "button";
+          btnShow.value = "Show";
+          btnShow.sessionRef = session["Ref"];
+          btnShow.onclick = WCServerSessionShow;
+          divSession.append(btnShow);
+          var btnClose = document.createElement("input");
+          btnClose.type = "button";
+          btnClose.value = "Close";
+          btnClose.sessionRef = session["Ref"];
+          btnClose.onclick = WCServerSessionClose;
+          divSession.append(btnClose);
+          $("#divSessions").append(divSession);
+          //animateCSS("#divSession" + session["Ref"], 'bounceIn');
+
+        }
+
+        if (this.sessionRef == 0) {
+
+          this.sessionRef = session["Ref"];
+          this.sessionKey = session["Key"];
+          divSession.className = "divCurrentSession";
+
+        }
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  SessionShow(sessionRef) {
+    try {
+
+      $("#divSession" + this.sessionRef).removeClass("divCurrentSession");
+      this.sessionKey = this.GetSessionKey(sessionRef);
+      this.sessionRef = sessionRef;
+      $("#divSession" + this.sessionRef).addClass("divCurrentSession");
+      $("#divWaitingRequests").empty();
+      $("#divConnectedUsers").empty();
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  SessionClose(sessionRef) {
+    try {
+
+      if (this.sessionRef == sessionRef) {
+
+        this.sessionKey = "0";
+        this.sessionRef = 0;
+
+      }
+
+      $("#divSession" + sessionRef).remove();
 
     } catch (err) {
       console.log(err.stack);
@@ -365,7 +458,7 @@ class WCServer {
   GetRequest(ret) {
     try {
 
-      $("#divWaitingRequests").html(JSON.stringify(ret));
+      //$("#divWaitingRequests").html(JSON.stringify(ret));
 
     } catch (err) {
       console.log(err.stack);
@@ -375,7 +468,7 @@ class WCServer {
   GetUser(ret) {
     try {
 
-      $("#divConnectedUsers").html(JSON.stringify(ret));
+      //$("#divConnectedUsers").html(JSON.stringify(ret));
 
     } catch (err) {
       console.log(err.stack);

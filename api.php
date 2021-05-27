@@ -259,7 +259,7 @@ function GetSession(
 
   try {
 
-    // Get the session
+    // Get the sessions
     $cmd = "SELECT Ref, Key FROM SessionKey";
     $rows = $db->query($cmd);
     if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
@@ -290,8 +290,12 @@ function GetRequest(
     $cmd = "SELECT Ref, Name FROM RequestLogin WHERE Key = '" . $key . "'";
     $rows = $db->query($cmd);
     if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
-    while ($row = $rows->fetchArray())
-      array_push($res, $row);
+    while ($row = $rows->fetchArray()) {
+      $session = array();
+      $session[$row["Ref"]] = array();
+      $session[$row["Ref"]]["Name"] = $row["Name"];
+      array_push($res, $session);
+    }
 
   } catch (Exception $e) {
 
@@ -371,40 +375,42 @@ try {
     // Else, if the server requested the session
     } else if ($_POST["action"] == "getSession") {
 
-      $res = CreateSession($db);
+      $res = GetSession($db);
       echo json_encode($res);
 
     // Else, if the server requested a new session
     } else if ($_POST["action"] == "createSession" and
-      isset($_POST["key"])) {
+      isset($_POST["key"]) and $_POST["key"] != "") {
 
       $res = CreateSession($db, $_POST["key"]);
       echo json_encode($res);
 
     // Else, if the user requested to login
     } else if ($_POST["action"] == "login" and
-      isset($_POST["key"]) and isset($_POST["name"])) {
+      isset($_POST["key"]) and isset($_POST["name"]) and
+      $_POST["key"] != "" and $_POST["name"] != "") {
 
       $res = RequestLogin($db, $_POST["key"], $_POST["name"]);
       echo json_encode($res);
 
     // Else, if the server requested the list of request
     } else if ($_POST["action"] == "getRequest" and
-      isset($_POST["key"])) {
+      isset($_POST["key"]) and $_POST["key"] != "") {
 
       $res = GetRequest($db, $_POST["key"]);
       echo json_encode($res);
 
     // Else, if the server requested the list of request
     } else if ($_POST["action"] == "getUser" and
-      isset($_POST["key"])) {
+      isset($_POST["key"]) and $_POST["key"] != "") {
 
       $res = GetUser($db, $_POST["key"]);
       echo json_encode($res);
 
     // Else, if the user requested to check its login
     } else if ($_POST["action"] == "checkLogin" and
-      isset($_POST["key"]) and isset($_POST["name"])) {
+      isset($_POST["key"]) and isset($_POST["name"]) and
+      $_POST["key"] != "" and $_POST["name"] != "") {
 
       $res = CheckLogin($db, $_POST["key"], $_POST["name"]);
       echo json_encode($res);
@@ -412,7 +418,7 @@ try {
     // If the user/server requested an unknown or invalid action
     } else {
 
-      echo '{"ret":"1","errMsg":"Invalid action"}';
+      echo '{"ret":"1","errMsg":"Invalid action ' . $_POST["action"] . '"}';
 
     }
 

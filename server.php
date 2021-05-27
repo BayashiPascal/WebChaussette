@@ -20,7 +20,9 @@ session_start();
     <div id="divTitle">WebChaussette - server</div>
     <div id="divMain">
       <div id="divSessionKey" class="serverInfo">
-        Session key: <?php echo session_id();?>
+        <div>Sessions:</div>
+        <div><input type="button" value="Create" onClick="WCServerCreateSession();"></div>
+        <div id="divSessions"></div>
       </div>
       <div id="divLoginRequest" class="serverInfo">
         <div>Waiting requests:</div>
