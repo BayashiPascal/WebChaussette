@@ -1,5 +1,5 @@
+// Function to set the animation with Animate.css
 const animateCSS = (element, animation, prefix = 'animate__') =>
-  // We create a Promise and return it
   new Promise((resolve, reject) => {
     const animationName = `${prefix}${animation}`;
     const node = document.querySelector(element);
@@ -16,6 +16,7 @@ const animateCSS = (element, animation, prefix = 'animate__') =>
     node.addEventListener('animationend', handleAnimationEnd, {once: true});
   });
 
+// Function to start the client
 function WCClientMain() {
   try {
 
@@ -23,13 +24,15 @@ function WCClientMain() {
     window.wcClient = new WCClient();
 
     // Start the main loop of the client
-    setInterval(WCClientLoop, 5000);
+    var refreshRateMs = 5000;
+    setInterval(window.wcClient.Loop.bind(window.wcClient), refreshRateMs);
 
   } catch (err) {
     console.log(err.stack);
   }
 }
 
+// Function to start the server
 function WCServerMain() {
   try {
 
@@ -37,23 +40,20 @@ function WCServerMain() {
     window.wcServer = new WCServer();
 
     // Start the main loop of the server
-    setInterval(WCServerLoop, 5000);
+    var refreshRateMs = 5000;
+    setInterval(window.wcServer.Loop.bind(window.wcServer), refreshRateMs);
 
   } catch (err) {
     console.log(err.stack);
   }
 }
 
-function WCClientLoop() {window.wcClient.Loop();}
+// Hooks for the events in the DOM
+function CreateSessionClick() {window.wcServer.CreateSessionReq();}
+
+
 function WCClientLogin(ret) {window.wcClient.Login(ret);}
 function WCClientCheckLogin(ret) {window.wcClient.CheckLogin(ret);}
-function WCServerCreateSession() {window.wcServer.CreateSession();}
-function WCServerLoop() {window.wcServer.Loop();}
-function WCServerGetSession(ret) {window.wcServer.GetSession(ret);}
-function WCServerGetRequest(ret) {window.wcServer.GetRequest(ret);}
-function WCServerGetUser(ret) {window.wcServer.GetUser(ret);}
-function WCServerSessionShow(event) {window.wcServer.SessionShow(event.target.sessionRef);};
-function WCServerSessionClose(event) {window.wcServer.SessionClose(event.target.sessionRef);};
 
 function WCClientRequestLogin() {
 
@@ -277,6 +277,9 @@ class WCServer {
 
       this.sessionRef = 0;
       this.sessionKey = "0";
+      this.sessions = null;
+      this.pendings = null;
+      this.connections = null;
 
     } catch (err) {
       console.log(err.stack);
@@ -295,7 +298,8 @@ class WCServer {
 
   }
 
-  CreateSession() {
+  // Request the creation of a new session
+  CreateSessionReq() {
     try {
 
       var newSessionId = this.MakeId(10);
@@ -314,15 +318,19 @@ class WCServer {
       key.setAttribute("value", newSessionId);
       form.appendChild(key);
       HTTPPostRequest(url, form, null);
+      animateCSS("#btnCreateSession", 'pulse');
 
     } catch (err) {
       console.log(err.stack);
     }
   }
 
-  Loop() {
+  // Request the list of opened sessions
+  GetSessionReq() {
     try {
-console.log(this.sessionKey);
+
+      console.log("GetSessionReq " + this.sessionKey);
+
       var url = "./api.php";
       var form = document.createElement("form");
       form.setAttribute("method", "post");
@@ -331,7 +339,90 @@ console.log(this.sessionKey);
       action.setAttribute("name", "action");
       action.setAttribute("value","getSession");
       form.appendChild(action);
-      HTTPPostRequest(url, form, WCServerGetSession);
+      HTTPPostRequest(url, form, this.GetSessionCb.bind(this));
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  // Callback for GetSessionReq
+  GetSessionCb(ret) {
+    try {
+
+      console.log("GetSessionCb " + JSON.stringify(ret));
+
+      // Memorise the sessions
+      this.sessions = ret;
+
+      // Loop on the sessions
+      for (const [iSession, session] of Object.entries(this.sessions)) {
+
+        // If the session is not in the DOM
+        if ($("#divSession" + session["Ref"]).length == 0) {
+
+          // Add the session to the DOM
+          var divSession = document.createElement("div");
+          divSession.id = "divSession" + session["Ref"];
+          var sessionKey = document.createTextNode(session["Key"]);
+          divSession.append(sessionKey);
+          var btnShow = document.createElement("input");
+          btnShow.type = "button";
+          btnShow.value = "Show";
+          btnShow.sessionRef = session["Ref"];
+          btnShow.onclick = (evt) => this.SessionSetCur(evt.target.sessionRef);
+          divSession.append(btnShow);
+          var btnClose = document.createElement("input");
+          btnClose.type = "button";
+          btnClose.value = "Close";
+          btnClose.sessionRef = session["Ref"];
+          btnClose.onclick =
+            (evt) => this.SessionCloseReq(evt.target.sessionRef);
+          divSession.append(btnClose);
+          $("#divSessions").append(divSession);
+          animateCSS("#divSession" + session["Ref"], 'bounceIn');
+
+        }
+
+      }
+
+      // If there is no session selected in the DOM, set this session has
+      // the current one
+      if (this.sessionRef == 0 && this.sessions.length > 0) {
+
+        this.sessionRef = this.sessions[0]["Ref"];
+        this.sessionKey = this.sessions[0]["Key"];
+        $("#divSession" + this.sessions[0]["Ref"]).addClass("divCurrentSession");
+
+      }
+
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  // Set the current session
+  SessionSetCur(sessionRef) {
+    try {
+
+      $("#divSession" + this.sessionRef).removeClass("divCurrentSession");
+      this.sessionKey = this.GetSessionKey(sessionRef);
+      this.sessionRef = sessionRef;
+      $("#divSession" + this.sessionRef).addClass("divCurrentSession");
+      $("#divPendings").empty();
+      $("#divConnections").empty();
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  // Request the list of request for connection
+  GetPendingReq() {
+    try {
+
+      console.log("GetPendingReq " + this.sessionKey);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -346,8 +437,126 @@ console.log(this.sessionKey);
       key.setAttribute("name", "key");
       key.setAttribute("value", this.sessionKey);
       form.appendChild(key);
-      HTTPPostRequest(url, form, WCServerGetRequest);
+      HTTPPostRequest(url, form, this.GetPendingCb.bind(this));
 
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  GetPendingCb(ret) {
+    try {
+
+      console.log("GetPendingCb " + JSON.stringify(ret));
+
+      // Memorise the pending requests
+      this.pendings = ret;
+
+      // Loop on the requests
+      for (const [iPending, pending] of Object.entries(this.pendings)) {
+
+        // If the session is not in the DOM
+        if ($("#divPending" + pending["Ref"]).length == 0) {
+
+          // Add the request to the DOM
+          var divPending = document.createElement("div");
+          divPending.id = "divPending" + pending["Ref"];
+          var pendingName = document.createTextNode(pending["Name"]);
+          divPending.append(pendingName);
+          var btnAccept = document.createElement("input");
+          btnAccept.type = "button";
+          btnAccept.value = "Accept";
+          btnAccept.pendingRef = pending["Ref"];
+          btnAccept.onclick =
+            (evt) => this.PendingAcceptReq(evt.target.pendingRef);
+          divPending.append(btnAccept);
+          var btnReject = document.createElement("input");
+          btnReject.type = "button";
+          btnReject.value = "Reject";
+          btnReject.pendingRef = pending["Ref"];
+          btnReject.onclick =
+            (evt) => this.PendingRejectReq(evt.target.pendingRef);
+          divPending.append(btnReject);
+          $("#divPendings").append(divPending);
+          animateCSS("#divPending" + pending["Ref"], 'bounceIn');
+
+        }
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  PendingAcceptReq(pendingRef) {
+    try {
+
+      console.log("PendingAcceptReq " + pendingRef);
+
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","acceptRequest");
+      form.appendChild(action);
+      var ref = document.createElement("input");
+      ref.setAttribute("type", "text");
+      ref.setAttribute("name", "ref");
+      ref.setAttribute("value", pendingRef);
+      form.appendChild(ref);
+      HTTPPostRequest(url, form, null);
+
+      animateCSS("#divPending" + pendingRef, 'bounceOut').then((message) => {
+        $("#divPending" + pendingRef).remove();
+      });
+
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  PendingRejectReq(pendingRef) {
+    try {
+
+      console.log("PendingRejectReq " + pendingRef);
+
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","rejectRequest");
+      form.appendChild(action);
+      var ref = document.createElement("input");
+      ref.setAttribute("type", "text");
+      ref.setAttribute("name", "ref");
+      ref.setAttribute("value", pendingRef);
+      form.appendChild(ref);
+      HTTPPostRequest(url, form, null);
+
+      animateCSS("#divPending" + pendingRef, 'bounceOut').then((message) => {
+        $("#divPending" + pendingRef).remove();
+      });
+
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  // Request the list of conneced users
+  GetConnectionReq() {
+    try {
+
+      console.log("GetConnectionReq " + this.sessionKey);
+
+      var url = "./api.php";
       var form = document.createElement("form");
       form.setAttribute("method", "post");
       var action = document.createElement("input");
@@ -360,13 +569,90 @@ console.log(this.sessionKey);
       key.setAttribute("name", "key");
       key.setAttribute("value", this.sessionKey);
       form.appendChild(key);
-      HTTPPostRequest(url, form, WCServerGetUser);
+      HTTPPostRequest(url, form, this.GetConnectionCb.bind(this));
 
     } catch (err) {
       console.log(err.stack);
     }
   }
 
+  GetConnectionCb(ret) {
+    try {
+
+      console.log("GetConnectionCb " + JSON.stringify(ret));
+
+      // Memorise the connection requests
+      this.connections = ret;
+
+      // Loop on the connections
+      for (const [iConnection, connection] of Object.entries(this.connections)) {
+
+        // If the session is not in the DOM
+        if ($("#divConnection" + connection["Ref"]).length == 0) {
+
+          // Add the connection to the DOM
+          var divConnection = document.createElement("div");
+          divConnection.id = "divConnection" + connection["Ref"];
+          divConnection.className = "divConnection";
+          divConnection.setAttribute("refConnection", connection["Ref"]);
+          var connectionName = document.createTextNode(connection["Name"]);
+          divConnection.append(connectionName);
+          $("#divConnections").append(divConnection);
+          animateCSS("#divConnection" + connection["Ref"], 'bounceIn');
+
+        }
+
+      }
+
+      // Loop on the connections in the DOM
+      var server = this;
+      $(".divConnection").each(function() {
+        if (server.ConnectionExists($(this).attr('refConnection')) == false) {
+          var id = "#" + $(this).attr('id');
+          animateCSS(id, 'bounceOut').then((message) => {
+            $(id).remove();
+          });
+        }
+      });
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  ConnectionExists(refConnection) {
+    try {
+console.log(refConnection);
+      for (const [iConnection, connection] of Object.entries(this.connections)) {
+
+        if (connection["Ref"] == refConnection)
+          return true;
+
+      }
+
+      return false;
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  Loop() {
+    try {
+
+      // Send the requests to update data
+      this.GetSessionReq();
+      this.GetPendingReq();
+      this.GetConnectionReq();
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+  }
+
+  // Get the key of a session from its reference
   GetSessionKey(ref) {
     try {
       for (const [iSession, session] of Object.entries(this.sessions)) {
@@ -378,68 +664,26 @@ console.log(this.sessionKey);
     }
   }
 
-  GetSession(ret) {
+  SessionCloseReq(sessionRef) {
     try {
 
-      this.sessions = ret;
+      var sessionKey = this.GetSessionKey(sessionRef);
+      console.log("SessionCloseReq " + sessionKey);
 
-      for (const [iSession, session] of Object.entries(this.sessions)) {
-
-        if ($("#divSession" + session["Ref"]).length == 0) {
-
-          var divSession = document.createElement("div");
-          divSession.id = "divSession" + session["Ref"];
-          var sessionKey = document.createTextNode(session["Key"]);
-          divSession.append(sessionKey);
-          var btnShow = document.createElement("input");
-          btnShow.type = "button";
-          btnShow.value = "Show";
-          btnShow.sessionRef = session["Ref"];
-          btnShow.onclick = WCServerSessionShow;
-          divSession.append(btnShow);
-          var btnClose = document.createElement("input");
-          btnClose.type = "button";
-          btnClose.value = "Close";
-          btnClose.sessionRef = session["Ref"];
-          btnClose.onclick = WCServerSessionClose;
-          divSession.append(btnClose);
-          $("#divSessions").append(divSession);
-          //animateCSS("#divSession" + session["Ref"], 'bounceIn');
-
-        }
-
-        if (this.sessionRef == 0) {
-
-          this.sessionRef = session["Ref"];
-          this.sessionKey = session["Key"];
-          divSession.className = "divCurrentSession";
-
-        }
-
-      }
-
-    } catch (err) {
-      console.log(err.stack);
-    }
-  }
-
-  SessionShow(sessionRef) {
-    try {
-
-      $("#divSession" + this.sessionRef).removeClass("divCurrentSession");
-      this.sessionKey = this.GetSessionKey(sessionRef);
-      this.sessionRef = sessionRef;
-      $("#divSession" + this.sessionRef).addClass("divCurrentSession");
-      $("#divWaitingRequests").empty();
-      $("#divConnectedUsers").empty();
-
-    } catch (err) {
-      console.log(err.stack);
-    }
-  }
-
-  SessionClose(sessionRef) {
-    try {
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","closeSession");
+      form.appendChild(action);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      key.setAttribute("value", this.sessionKey);
+      form.appendChild(key);
+      HTTPPostRequest(url, form, null);
 
       if (this.sessionRef == sessionRef) {
 
@@ -448,27 +692,10 @@ console.log(this.sessionKey);
 
       }
 
-      $("#divSession" + sessionRef).remove();
+      animateCSS("#divSession" + sessionRef, 'bounceOut').then((message) => {
+        $("#divSession" + sessionRef).remove();
+      });
 
-    } catch (err) {
-      console.log(err.stack);
-    }
-  }
-
-  GetRequest(ret) {
-    try {
-
-      //$("#divWaitingRequests").html(JSON.stringify(ret));
-
-    } catch (err) {
-      console.log(err.stack);
-    }
-  }
-
-  GetUser(ret) {
-    try {
-
-      //$("#divConnectedUsers").html(JSON.stringify(ret));
 
     } catch (err) {
       console.log(err.stack);

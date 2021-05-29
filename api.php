@@ -156,6 +156,101 @@ function CreateSession(
 
 }
 
+// Close a session
+// Input:
+//   key: the session key
+function CloseSession(
+  $db,
+  $key) {
+
+  try {
+
+    // Delete the session
+    $cmd = "DELETE FROM Connection WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+    $cmd = "DELETE FROM RequestLogin WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+    $cmd = "DELETE FROM SessionKey WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return "";
+
+}
+
+// Accept a request for connection
+// Input:
+//   ref: the request reference
+function AcceptRequest(
+  $db,
+  $ref) {
+
+  try {
+
+    // Create the connection
+    $cmd = "INSERT INTO Connection (Key, Name) VALUES (";
+    $cmd .= "(SELECT Key FROM RequestLogin WHERE Ref = '" . $ref . "'),";
+    $cmd .= "(SELECT Name FROM RequestLogin WHERE Ref = '" . $ref . "'))";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+
+
+    // Delete the request
+    $cmd = "DELETE FROM RequestLogin WHERE Ref = '" . $ref . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return "";
+
+}
+
+// Reject a request for connection
+// Input:
+//   ref: the request reference
+function RejectRequest(
+  $db,
+  $ref) {
+
+  try {
+
+    // Delete the request
+    $cmd = "DELETE FROM RequestLogin WHERE Ref = '" . $ref . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return "";
+
+}
+
 // Process a request for login
 // Input:
 //   key: session key
@@ -291,10 +386,7 @@ function GetRequest(
     $rows = $db->query($cmd);
     if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
     while ($row = $rows->fetchArray()) {
-      $session = array();
-      $session[$row["Ref"]] = array();
-      $session[$row["Ref"]]["Name"] = $row["Name"];
-      array_push($res, $session);
+      array_push($res, $row);
     }
 
   } catch (Exception $e) {
@@ -383,6 +475,27 @@ try {
       isset($_POST["key"]) and $_POST["key"] != "") {
 
       $res = CreateSession($db, $_POST["key"]);
+      echo json_encode($res);
+
+    // Else, if the server requested to close session
+    } else if ($_POST["action"] == "closeSession" and
+      isset($_POST["key"]) and $_POST["key"] != "") {
+
+      $res = CloseSession($db, $_POST["key"]);
+      echo json_encode($res);
+
+    // Else, if the server accept a request
+    } else if ($_POST["action"] == "acceptRequest" and
+      isset($_POST["ref"]) and $_POST["ref"] != "") {
+
+      $res = AcceptRequest($db, $_POST["ref"]);
+      echo json_encode($res);
+
+    // Else, if the server reject a request
+    } else if ($_POST["action"] == "rejectRequest" and
+      isset($_POST["ref"]) and $_POST["ref"] != "") {
+
+      $res = RejectRequest($db, $_POST["ref"]);
       echo json_encode($res);
 
     // Else, if the user requested to login
