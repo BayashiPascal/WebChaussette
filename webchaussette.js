@@ -50,45 +50,8 @@ function WCServerMain() {
 
 // Hooks for the events in the DOM
 function CreateSessionClick() {window.wcServer.CreateSessionReq();}
+function RequestConnectionClick() {window.wcClient.ConnectionReq($("#inpName").val(), $("#inpKey").val());}
 
-
-function WCClientLogin(ret) {window.wcClient.Login(ret);}
-function WCClientCheckLogin(ret) {window.wcClient.CheckLogin(ret);}
-
-function WCClientRequestLogin() {
-
-  window.wcClient.name = $("#inpName").val();
-  window.wcClient.key = $("#inpKey").val();
-
-  var url = "./api.php";
-  var form = document.createElement("form");
-  form.setAttribute("method", "post");
-  var action = document.createElement("input");
-  action.setAttribute("type", "text");
-  action.setAttribute("name", "action");
-  action.setAttribute("value","login");
-  form.appendChild(action);
-  var name = document.createElement("input");
-  name.setAttribute("type", "text");
-  name.setAttribute("name", "name");
-  name.setAttribute("value", window.wcClient.name);
-  form.appendChild(name);
-  var key = document.createElement("input");
-  key.setAttribute("type", "text");
-  key.setAttribute("name", "key");
-  key.setAttribute("value", window.wcClient.key);
-  form.appendChild(key);
-  HTTPPostRequest(url, form, WCClientLogin);
-
-  animateCSS('#divLoginRequest', 'bounceOut').then((message) => {
-    $("#divLoginRequest").css("display", "none");
-    animateCSS('#divLoginWait', 'bounceIn');
-    $("#divLoginWait").css("display", "block");
-  });
-
-  window.wcClient.status = "wait login";
-
-}
 
 function WCClientRequestAgain() {
 
@@ -180,7 +143,7 @@ class WCClient {
   constructor() {
     try {
 
-      this.status = "request login";
+      this.status = "idle";
       this.name = "";
       this.key = "";
 
@@ -189,47 +152,47 @@ class WCClient {
     }
   }
 
-  Loop() {
-    try {
+  ConnectionReq(name, key) {
 
-      if (this.status == "request login") {
+    console.log("ConnectionReq " + name + " " + key);
 
+    this.name = name;
+    this.key = key;
 
-      } else if (this.status == "wait login") {
+    var url = "./api.php";
+    var form = document.createElement("form");
+    form.setAttribute("method", "post");
+    var action = document.createElement("input");
+    action.setAttribute("type", "text");
+    action.setAttribute("name", "action");
+    action.setAttribute("value","connect");
+    form.appendChild(action);
+    var name = document.createElement("input");
+    name.setAttribute("type", "text");
+    name.setAttribute("name", "name");
+    name.setAttribute("value", this.name);
+    form.appendChild(name);
+    var key = document.createElement("input");
+    key.setAttribute("type", "text");
+    key.setAttribute("name", "key");
+    key.setAttribute("value", this.key);
+    form.appendChild(key);
+    HTTPPostRequest(url, form, this.ConnectionCb.bind(this));
 
-        var url = "./api.php";
-        var form = document.createElement("form");
-        form.setAttribute("method", "post");
-        var action = document.createElement("input");
-        action.setAttribute("type", "text");
-        action.setAttribute("name", "action");
-        action.setAttribute("value","checkLogin");
-        form.appendChild(action);
-        var name = document.createElement("input");
-        name.setAttribute("type", "text");
-        name.setAttribute("name", "name");
-        name.setAttribute("value","pascal");
-        form.appendChild(name);
-        var key = document.createElement("input");
-        key.setAttribute("type", "text");
-        key.setAttribute("name", "key");
-        key.setAttribute("value", this.key);
-        form.appendChild(key);
-        HTTPPostRequest(url, form, WCClientCheckLogin);
+    animateCSS('#divLoginRequest', 'bounceOut').then((message) => {
+      $("#divLoginRequest").css("display", "none");
+      animateCSS('#divLoginWait', 'bounceIn');
+      $("#divLoginWait").css("display", "block");
+    });
 
-      } else if (this.status == "denied login") {
+    window.wcClient.status = "wait connection";
 
-      } else if (this.status == "active") {
-
-      }
-
-    } catch (err) {
-      console.log(err.stack);
-    }
   }
 
-  Login(ret) {
+  ConnectionCb(ret) {
     try {
+
+      console.log("ConnectionCb " + JSON.stringify(ret));
 
       if (ret["err"] != 0) {
 
@@ -247,8 +210,66 @@ class WCClient {
     }
   }
 
-  CheckLogin(ret) {
+  Loop() {
     try {
+
+      if (this.status == "idle") {
+
+        // Wait for the user to request a connection
+
+      } else if (this.status == "wait connection") {
+
+        this.ConnectionStatusReq();
+
+      } else if (this.status == "denied login") {
+
+        // Wait for the user to retry or give up
+
+      } else if (this.status == "active") {
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  ConnectionStatusReq() {
+    try {
+
+      console.log("ConnectionStatusReq");
+
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","checkConnection");
+      form.appendChild(action);
+      var name = document.createElement("input");
+      name.setAttribute("type", "text");
+      name.setAttribute("name", "name");
+      name.setAttribute("value",this.name);
+      form.appendChild(name);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      key.setAttribute("value", this.key);
+      form.appendChild(key);
+      HTTPPostRequest(url, form, this.ConnectionStatusCb.bind(this));
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  ConnectionStatusCb(ret) {
+    try {
+
+      console.log("ConnectionStatusCb " + JSON.stringify(ret));
 
       if (ret["err"] == 0) {
 
@@ -258,6 +279,15 @@ class WCClient {
           $("#divLoginGranted").css("display", "block");
         });
         this.status = "active";
+
+      } else if (ret["err"] == 2) {
+
+        animateCSS('#divLoginWait', 'bounceOut').then((message) => {
+          $("#divLoginWait").css("display", "none");
+          animateCSS('#divLoginDenied', 'bounceIn');
+          $("#divLoginDenied").css("display", "block");
+        });
+        this.status = "denied login";
 
       }
 
@@ -681,7 +711,7 @@ console.log(refConnection);
       var key = document.createElement("input");
       key.setAttribute("type", "text");
       key.setAttribute("name", "key");
-      key.setAttribute("value", this.sessionKey);
+      key.setAttribute("value", sessionKey);
       form.appendChild(key);
       HTTPPostRequest(url, form, null);
 

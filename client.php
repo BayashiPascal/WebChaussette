@@ -23,7 +23,7 @@ session_start();
       <div id="divLoginRequest" class="loginStatus">
         Session key:<input id="inpKey" type="text"><br>
         Your name:<input id="inpName" type="text"><br>
-        <input type="button" value="Request connection" onClick="WCClientRequestLogin();">
+        <input type="button" value="Request connection" onClick="RequestConnectionClick();">
       </div>
       <div id="divLoginWait" class="loginStatus" style="display:none;">
         Waiting for the host to grant your request.<br>

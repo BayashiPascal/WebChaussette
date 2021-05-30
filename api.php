@@ -39,7 +39,7 @@ function CreateDatabase(
       "CREATE TABLE SessionKey (" .
       "  Ref INTEGER PRIMARY KEY," .
       "  Key TEXT NOT NULL)",
-      "CREATE TABLE RequestLogin (" .
+      "CREATE TABLE RequestConnection (" .
       "  Ref INTEGER PRIMARY KEY," .
       "  Key TEXT NOT NULL," .
       "  Name TEXT NOT NULL)",
@@ -170,7 +170,7 @@ function CloseSession(
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
-    $cmd = "DELETE FROM RequestLogin WHERE Key = '" . $key . "'";
+    $cmd = "DELETE FROM RequestConnection WHERE Key = '" . $key . "'";
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
@@ -201,15 +201,15 @@ function AcceptRequest(
 
     // Create the connection
     $cmd = "INSERT INTO Connection (Key, Name) VALUES (";
-    $cmd .= "(SELECT Key FROM RequestLogin WHERE Ref = '" . $ref . "'),";
-    $cmd .= "(SELECT Name FROM RequestLogin WHERE Ref = '" . $ref . "'))";
+    $cmd .= "(SELECT Key FROM RequestConnection WHERE Ref = '" . $ref . "'),";
+    $cmd .= "(SELECT Name FROM RequestConnection WHERE Ref = '" . $ref . "'))";
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
 
 
     // Delete the request
-    $cmd = "DELETE FROM RequestLogin WHERE Ref = '" . $ref . "'";
+    $cmd = "DELETE FROM RequestConnection WHERE Ref = '" . $ref . "'";
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
@@ -235,7 +235,7 @@ function RejectRequest(
   try {
 
     // Delete the request
-    $cmd = "DELETE FROM RequestLogin WHERE Ref = '" . $ref . "'";
+    $cmd = "DELETE FROM RequestConnection WHERE Ref = '" . $ref . "'";
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
@@ -251,11 +251,11 @@ function RejectRequest(
 
 }
 
-// Process a request for login
+// Process a request for connection
 // Input:
 //   key: session key
 //   name: name of the user
-function RequestLogin(
+function RequestConnection(
   $db,
   $key,
   $name) {
@@ -266,40 +266,55 @@ function RequestLogin(
   try {
 
     // Check the session exists
-    $cmd = "SELECT Ref FROM SessionKey WHERE Key = '" . $key . "'";
-    $rows = $db->query($cmd);
-    if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
-    $row = $rows->fetchArray();
-    if ($row != false)
+    $stmt = $db->prepare("SELECT Ref FROM SessionKey WHERE Key = :key");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $result->fetchArray();
+    if ($row == false) {
+
       $res["err"] = 1;
-
-    // Check the name doesn't exist for this session
-    $cmd = "SELECT Ref FROM RequestLogin WHERE Key = '" . $key . "' ";
-    $cmd .= "AND Name = '" . $name . "'";
-    $rows = $db->query($cmd);
-    if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
-    $row = $rows->fetchArray();
-    if ($row != false)
-      $res["err"] = 2;
-
-    $cmd = "SELECT Ref FROM Connection WHERE Key = '" . $key . "' ";
-    $cmd .= "AND Name = '" . $name . "'";
-    $rows = $db->query($cmd);
-    if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
-    $row = $rows->fetchArray();
-    if ($row != false)
-      $res["err"] = 2;
-
-    if ($res["err"] == 0) {
-
-      // Add the request
-      $cmd = "INSERT INTO RequestLogin (Key, Name) ";
-      $cmd .= "VALUES ('" . $key . "', '" . $name . "')";
-      $success = $db->exec($cmd);
-      if ($success == false)
-        throw new Exception("exec() failed for " . $cmd);
+      return $res;
 
     }
+
+    // Check the name doesn't exist for this session
+    $stmt = $db->prepare(
+      "SELECT Ref FROM RequestConnection WHERE Key = :key AND Name = :name");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $result->fetchArray();
+    if ($row != false) {
+
+      $res["err"] = 2;
+      return $res;
+
+    }
+
+    $stmt = $db->prepare(
+      "SELECT Ref FROM Connection WHERE Key = :key AND Name = :name");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $result->fetchArray();
+    if ($row != false) {
+
+      $res["err"] = 3;
+      return $res;
+
+    }
+
+    // Add the request
+    $stmt = $db->prepare(
+      "INSERT INTO RequestConnection (Key, Name) VALUES (:key, :name)");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false)
+      throw new Exception("exec() failed for " . $cmd);
 
   } catch (Exception $e) {
 
@@ -312,11 +327,11 @@ function RequestLogin(
 
 }
 
-// Check if a user has login
+// Check the connection status of a user
 // Input:
 //   key: session key
 //   name: name of the user
-function CheckLogin(
+function CheckConnection(
   $db,
   $key,
   $name) {
@@ -326,14 +341,29 @@ function CheckLogin(
 
   try {
 
-    // Check the login
-    $cmd = "SELECT Ref FROM Connection WHERE Key = '" . $key . "' ";
-    $cmd .= "AND Name = '" . $name . "'";
-    $rows = $db->query($cmd);
-    if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
-    $row = $rows->fetchArray();
-    if ($row == false)
-      $res["err"] = 1;
+    // Check the Connection
+    $stmt = $db->prepare(
+      "SELECT Ref FROM Connection WHERE Key = :key AND Name = :name");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $result->fetchArray();
+    if ($row == false) {
+
+      $stmt = $db->prepare(
+        "SELECT Ref FROM RequestConnection WHERE Key = :key AND Name = :name");
+      $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+      $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+      $result = $stmt->execute();
+      if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      $row = $result->fetchArray();
+      if ($row == false) {
+        $res["err"] = 2;
+      } else {
+        $res["err"] = 1;
+      }
+    }
 
   } catch (Exception $e) {
 
@@ -382,7 +412,7 @@ function GetRequest(
   try {
 
     // Get the requests
-    $cmd = "SELECT Ref, Name FROM RequestLogin WHERE Key = '" . $key . "'";
+    $cmd = "SELECT Ref, Name FROM RequestConnection WHERE Key = '" . $key . "'";
     $rows = $db->query($cmd);
     if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
     while ($row = $rows->fetchArray()) {
@@ -498,12 +528,12 @@ try {
       $res = RejectRequest($db, $_POST["ref"]);
       echo json_encode($res);
 
-    // Else, if the user requested to login
-    } else if ($_POST["action"] == "login" and
+    // Else, if the user requested to connect
+    } else if ($_POST["action"] == "connect" and
       isset($_POST["key"]) and isset($_POST["name"]) and
       $_POST["key"] != "" and $_POST["name"] != "") {
 
-      $res = RequestLogin($db, $_POST["key"], $_POST["name"]);
+      $res = RequestConnection($db, $_POST["key"], $_POST["name"]);
       echo json_encode($res);
 
     // Else, if the server requested the list of request
@@ -521,11 +551,11 @@ try {
       echo json_encode($res);
 
     // Else, if the user requested to check its login
-    } else if ($_POST["action"] == "checkLogin" and
+    } else if ($_POST["action"] == "checkConnection" and
       isset($_POST["key"]) and isset($_POST["name"]) and
       $_POST["key"] != "" and $_POST["name"] != "") {
 
-      $res = CheckLogin($db, $_POST["key"], $_POST["name"]);
+      $res = CheckConnection($db, $_POST["key"], $_POST["name"]);
       echo json_encode($res);
 
     // If the user/server requested an unknown or invalid action
