@@ -385,6 +385,65 @@ function CheckConnection(
 
 }
 
+// Receive data
+// Input:
+//   key: session key
+//   name: name of the user
+//   data: json encoded data
+function CheckConnection(
+  $db,
+  $key,
+  $name,
+  $data) {
+
+  $res = array();
+  $res["err"] = 0; 
+
+  try {
+
+    // Check the Connection
+    $stmt = $db->prepare(
+      "SELECT Ref FROM Connection WHERE Key = :key AND Name = :name");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $result->fetchArray();
+    if ($row !== false) {
+
+      $ref = $row["Ref"];
+
+      // Save the data
+      $stmt = $db->prepare(
+        "INSERT INTO Data (RefSrcConnection, Key, Value)" .
+        "VALUES (:ref, :key, :data)");
+      $stmt->bindValue(":ref", $ref, SQLITE3_INTEGER);
+      $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+      $stmt->bindValue(":data", $data, SQLITE3_TEXT);
+      $result = $stmt->execute();
+      if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      $refData = $db->lastInsertRowID();
+
+      $stmt = $db->prepare(
+        "INSERT INTO DataDispatch (RefData, RefConnection)" .
+        "VALUES (:refData, :refConnection)");
+      $stmt->bindValue(":refData", $refData, SQLITE3_TEXT);
+      $result = $stmt->execute();
+      if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+
+    }
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return $res;
+
+}
+
 // Get the opened session
 function GetSession(
   $db) {
@@ -565,6 +624,16 @@ try {
       $_POST["key"] != "" and $_POST["name"] != "") {
 
       $res = CheckConnection($db, $_POST["key"], $_POST["name"]);
+      echo json_encode($res);
+
+    // Else, if the user requested to send data
+    } else if ($_POST["action"] == "sendData" and
+      isset($_POST["key"]) and isset($_POST["name"]) and
+      isset($_POST["data"]) and $_POST["key"] != "" and
+      $_POST["name"] != "" and $_POST["data"] != "") {
+
+      $res = ReceiveData($db,
+        $_POST["key"], $_POST["name"], $_POST["data"]);
       echo json_encode($res);
 
     // If the user/server requested an unknown or invalid action
