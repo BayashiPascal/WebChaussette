@@ -38,7 +38,12 @@ session_start();
         <input type="button" value="Connect again ?" onClick="WCClientReconnect();">
       </div>
       <div id="divLoginGranted" class="loginStatus" style="display:none;">
-        You're connected!
+        <div>You're connected! Type a message and send it with shift+enter.</div>
+        <div id="divChatUsers"></div>
+        <div id="divChatMessages"></div>
+        <div id="divMessage">
+          <input id="inpMessage" type="text" onkeypress="InpMessageKeyPress(event);">
+        </div>
       </div>
     </div>
   </body>

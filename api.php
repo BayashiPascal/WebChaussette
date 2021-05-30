@@ -43,6 +43,15 @@ function CreateDatabase(
       "  Ref INTEGER PRIMARY KEY," .
       "  Key TEXT NOT NULL," .
       "  Name TEXT NOT NULL)",
+      "CREATE TABLE Data (" .
+      "  Ref INTEGER PRIMARY KEY," .
+      "  RefSrcConnection INTEGER NOT NULL," .
+      "  Key TEXT NOT NULL," .
+      "  Value TEXT NOT NULL)",
+      "CREATE TABLE DataDispatch (" .
+      "  Ref INTEGER PRIMARY KEY," .
+      "  RefData INTEGER NOT NULL," .
+      "  RefConnection INTEGER NOT NULL)",
       "CREATE TABLE Connection (" .
       "  Ref INTEGER PRIMARY KEY," .
       "  Key TEXT NOT NULL," .

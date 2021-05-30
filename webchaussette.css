@@ -80,8 +80,16 @@ body {
 }
 
 .divCurrentSession {
-
   border: 1px solid #fefefe;
   border-radius: 5px;
+}
 
+#divChatMessages {
+  height: 200px;
+  width: 90%;
+  overflow: auto;
+}
+
+#inpMessage {
+  width: 90%;
 }

@@ -51,7 +51,7 @@ function WCServerMain() {
 // Hooks for the events in the DOM
 function CreateSessionClick() {window.wcServer.CreateSessionReq();}
 function RequestConnectionClick() {window.wcClient.ConnectionReq($("#inpName").val(), $("#inpKey").val());}
-
+function InpMessageKeyPress(event) {window.wcClient.MessageKeyPress(event);}
 
 function WCClientRequestAgain() {
 
@@ -146,6 +146,7 @@ class WCClient {
       this.status = "idle";
       this.name = "";
       this.key = "";
+      this.message = "";
 
     } catch (err) {
       console.log(err.stack);
@@ -227,6 +228,8 @@ class WCClient {
 
       } else if (this.status == "active") {
 
+        this.RecvDataReq();
+
       }
 
     } catch (err) {
@@ -279,6 +282,8 @@ class WCClient {
           $("#divLoginGranted").css("display", "block");
         });
         this.status = "active";
+        $("#divChatUsers").empty();
+        $("#divChatMessages").empty();
 
       } else if (ret["err"] == 2) {
 
@@ -294,6 +299,86 @@ class WCClient {
     } catch (err) {
       console.log(err.stack);
     }
+
+  }
+
+  RecvDataReq() {
+
+    try {
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  RecvDataCb() {
+
+    try {
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  MessageKeyPress(event) {
+
+    try {
+
+      if (event.keyCode == 13 && event.shiftKey) {
+
+        event.preventDefault();
+        this.message = $("#inpMessage").val();
+        $("#inpMessage").val("");
+        this.SendDataReq();
+        return false;
+
+      }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  SendDataReq() {
+
+    try {
+
+      console.log("SendDataReq " + this.message);
+
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","sendData");
+      form.appendChild(action);
+      var name = document.createElement("input");
+      name.setAttribute("type", "text");
+      name.setAttribute("name", "name");
+      name.setAttribute("value",this.name);
+      form.appendChild(name);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      key.setAttribute("value", this.key);
+      form.appendChild(key);
+      form.appendChild(name);
+      var data = document.createElement("input");
+      data.setAttribute("type", "text");
+      data.setAttribute("name", "data");
+      jsonData = json_encode(array("msg" => this.message));
+      data.setAttribute("value", jsonData);
+      form.appendChild(data);
+      HTTPPostRequest(url, form, null);
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
   }
 
 }
