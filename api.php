@@ -390,7 +390,7 @@ function CheckConnection(
 //   key: session key
 //   name: name of the user
 //   data: json encoded data
-function CheckConnection(
+function ReceiveData(
   $db,
   $key,
   $name,
@@ -426,10 +426,57 @@ function CheckConnection(
 
       $stmt = $db->prepare(
         "INSERT INTO DataDispatch (RefData, RefConnection)" .
-        "VALUES (:refData, :refConnection)");
+        "SELECT :refData as RefData, Ref as RefConnection " .
+        "FROM Connection WHERE Key = :key and Ref <> :refConnection");
       $stmt->bindValue(":refData", $refData, SQLITE3_TEXT);
+      $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+      $stmt->bindValue(":refConnection", $ref, SQLITE3_TEXT);
       $result = $stmt->execute();
       if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+
+    }
+
+  } catch (Exception $e) {
+
+    // Rethrow the exception it will be managed in the main block
+    throw($e);
+
+  }
+
+  return $res;
+
+}
+
+// Send data
+// Input:
+//   key: session key
+//   name: name of the user
+function SendData(
+  $db,
+  $key,
+  $name) {
+
+  $res = array();
+  $res["err"] = 0; 
+
+  try {
+
+    // Check the Connection
+    $stmt = $db->prepare(
+      "SELECT Ref FROM Connection WHERE Key = :key AND Name = :name");
+    $stmt->bindValue(":key", $key, SQLITE3_TEXT);
+    $stmt->bindValue(":name", $name, SQLITE3_TEXT);
+    $result = $stmt->execute();
+    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $result->fetchArray();
+    if ($row !== false) {
+
+      $ref = $row["Ref"];
+
+
+    } else {
+
+      $res["err"] = 1; 
 
     }
 
@@ -634,6 +681,14 @@ try {
 
       $res = ReceiveData($db,
         $_POST["key"], $_POST["name"], $_POST["data"]);
+      echo json_encode($res);
+
+    // Else, if the user requested to receive data
+    } else if ($_POST["action"] == "recvData" and
+      isset($_POST["key"]) and isset($_POST["name"]) and
+      $_POST["key"] != "" and $_POST["name"] != "") {
+
+      $res = SendData($db, $_POST["key"], $_POST["name"]);
       echo json_encode($res);
 
     // If the user/server requested an unknown or invalid action

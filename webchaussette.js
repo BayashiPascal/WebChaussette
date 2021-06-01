@@ -258,7 +258,7 @@ class WCClient {
       form.appendChild(name);
       var key = document.createElement("input");
       key.setAttribute("type", "text");
-      key.setAttribute("name", "key");
+      key.setAttribute("namde", "key");
       key.setAttribute("value", this.key);
       form.appendChild(key);
       HTTPPostRequest(url, form, this.ConnectionStatusCb.bind(this));
@@ -280,6 +280,8 @@ class WCClient {
           $("#divLoginWait").css("display", "none");
           animateCSS('#divLoginGranted', 'bounceIn');
           $("#divLoginGranted").css("display", "block");
+          $("#divMessage").empty();
+          $("#divMessage").css("display", "block");
         });
         this.status = "active";
         $("#divChatUsers").empty();
@@ -306,15 +308,54 @@ class WCClient {
 
     try {
 
+      console.log("RecDataReq");
+
+      var url = "./api.php";
+      var form = document.createElement("form");
+      form.setAttribute("method", "post");
+      var action = document.createElement("input");
+      action.setAttribute("type", "text");
+      action.setAttribute("name", "action");
+      action.setAttribute("value","recvData");
+      form.appendChild(action);
+      var name = document.createElement("input");
+      name.setAttribute("type", "text");
+      name.setAttribute("name", "name");
+      name.setAttribute("value",this.name);
+      form.appendChild(name);
+      var key = document.createElement("input");
+      key.setAttribute("type", "text");
+      key.setAttribute("name", "key");
+      key.setAttribute("value", this.key);
+      form.appendChild(key);
+      HTTPPostRequest(url, form, this.RecvDataCb.bind(this));
+
     } catch (err) {
       console.log(err.stack);
     }
 
   }
 
-  RecvDataCb() {
+  RecvDataCb(ret) {
 
     try {
+
+      console.log("RecDataReq " + JSON.stringify(ret));
+      if (ret["err"] == 1) {
+
+        animateCSS('#divMessage', 'bounceOut').then((message) => {
+          $("#divMessage").css("display", "none");
+        }
+        animateCSS('#divLoginGranted', 'bounceOut').then((message) => {
+          $("#divLoginGranted").css("display", "none");
+          animateCSS('#divLoginDisconnected', 'bounceIn');
+          $("#divLoginDisconnected").css("display", "block");
+        });
+        this.status = "idle";
+
+      } else {
+//TODO
+      }
 
     } catch (err) {
       console.log(err.stack);
@@ -366,12 +407,11 @@ class WCClient {
       key.setAttribute("name", "key");
       key.setAttribute("value", this.key);
       form.appendChild(key);
-      form.appendChild(name);
       var data = document.createElement("input");
       data.setAttribute("type", "text");
       data.setAttribute("name", "data");
-      jsonData = json_encode(array("msg" => this.message));
-      data.setAttribute("value", jsonData);
+      var jsonData = {msg: this.message};
+      data.setAttribute("value", JSON.stringify(jsonData));
       form.appendChild(data);
       HTTPPostRequest(url, form, null);
 
