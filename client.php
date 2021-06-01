@@ -42,7 +42,9 @@ session_start();
         <div id="divChatUsers"></div>
         <div id="divChatMessages"></div>
         <div id="divMessage">
-          <input id="inpMessage" type="text" onkeypress="InpMessageKeyPress(event);">
+          <div id="divData"></div>
+          <input id="inpMessage" type="text" onkeypress="InpMessageKeyPress(event);"><br>
+          <input type="button" value="Send" onClick="SendMessageClick();">
         </div>
       </div>
     </div>

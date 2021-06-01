@@ -52,6 +52,7 @@ function WCServerMain() {
 function CreateSessionClick() {window.wcServer.CreateSessionReq();}
 function RequestConnectionClick() {window.wcClient.ConnectionReq($("#inpName").val(), $("#inpKey").val());}
 function InpMessageKeyPress(event) {window.wcClient.MessageKeyPress(event);}
+function SendMessageClick() {window.wcClient.SendMessage();}
 
 function WCClientRequestAgain() {
 
@@ -258,7 +259,7 @@ class WCClient {
       form.appendChild(name);
       var key = document.createElement("input");
       key.setAttribute("type", "text");
-      key.setAttribute("namde", "key");
+      key.setAttribute("name", "key");
       key.setAttribute("value", this.key);
       form.appendChild(key);
       HTTPPostRequest(url, form, this.ConnectionStatusCb.bind(this));
@@ -280,7 +281,8 @@ class WCClient {
           $("#divLoginWait").css("display", "none");
           animateCSS('#divLoginGranted', 'bounceIn');
           $("#divLoginGranted").css("display", "block");
-          $("#divMessage").empty();
+          $("#divData").empty();
+          animateCSS('#divMessage', 'bounceIn');
           $("#divMessage").css("display", "block");
         });
         this.status = "active";
@@ -345,7 +347,7 @@ class WCClient {
 
         animateCSS('#divMessage', 'bounceOut').then((message) => {
           $("#divMessage").css("display", "none");
-        }
+        });
         animateCSS('#divLoginGranted', 'bounceOut').then((message) => {
           $("#divLoginGranted").css("display", "none");
           animateCSS('#divLoginDisconnected', 'bounceIn');
@@ -354,7 +356,24 @@ class WCClient {
         this.status = "idle";
 
       } else {
-//TODO
+
+        var datas = ret["data"];
+        if (datas.length > 0) {
+
+          // Add the messages to the DOM
+          for (const [iData, data] of Object.entries(datas)) {
+
+            var divMsg = document.createElement("div");
+            var msg = JSON.parse(data["Value"])
+            var val = document.createTextNode(msg["msg"]);
+            divMsg.append(val);
+            $("#divData").append(divMsg);
+            //animateCSS("#divSession" + session["Ref"], 'bounceIn');
+
+          }
+
+        }
+
       }
 
     } catch (err) {
@@ -376,6 +395,20 @@ class WCClient {
         return false;
 
       }
+
+    } catch (err) {
+      console.log(err.stack);
+    }
+
+  }
+
+  SendMessage() {
+
+    try {
+
+      this.message = $("#inpMessage").val();
+      $("#inpMessage").val("");
+      this.SendDataReq();
 
     } catch (err) {
       console.log(err.stack);

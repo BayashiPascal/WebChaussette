@@ -187,6 +187,15 @@ function CloseSession(
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
+    $cmd = "DELETE FROM DataDispatch WHERE RefData IN " .
+      "(SELECT Ref FROM Data WHERE Key = '" . $key . "')";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
+    $cmd = "DELETE FROM Data WHERE Key = '" . $key . "'";
+    $success = $db->exec($cmd);
+    if ($success == false)
+      throw new Exception("exec() failed for " . $cmd);
 
   } catch (Exception $e) {
 
@@ -278,7 +287,8 @@ function RequestConnection(
     $stmt = $db->prepare("SELECT Ref FROM SessionKey WHERE Key = :key");
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
     $row = $result->fetchArray();
     if ($row == false) {
 
@@ -293,7 +303,8 @@ function RequestConnection(
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $stmt->bindValue(":name", $name, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
     $row = $result->fetchArray();
     if ($row != false) {
 
@@ -307,7 +318,8 @@ function RequestConnection(
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $stmt->bindValue(":name", $name, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
     $row = $result->fetchArray();
     if ($row != false) {
 
@@ -322,8 +334,8 @@ function RequestConnection(
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $stmt->bindValue(":name", $name, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false)
-      throw new Exception("exec() failed for " . $cmd);
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
 
   } catch (Exception $e) {
 
@@ -356,7 +368,8 @@ function CheckConnection(
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $stmt->bindValue(":name", $name, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    if ($result == false)
+      throw new Exception("query(" . $stmt->getSQL() . ") failed");
     $row = $result->fetchArray();
     if ($row == false) {
 
@@ -365,7 +378,8 @@ function CheckConnection(
       $stmt->bindValue(":key", $key, SQLITE3_TEXT);
       $stmt->bindValue(":name", $name, SQLITE3_TEXT);
       $result = $stmt->execute();
-      if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
       $row = $result->fetchArray();
       if ($row == false) {
         $res["err"] = 2;
@@ -407,7 +421,8 @@ function ReceiveData(
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $stmt->bindValue(":name", $name, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
     $row = $result->fetchArray();
     if ($row !== false) {
 
@@ -421,18 +436,20 @@ function ReceiveData(
       $stmt->bindValue(":key", $key, SQLITE3_TEXT);
       $stmt->bindValue(":data", $data, SQLITE3_TEXT);
       $result = $stmt->execute();
-      if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
       $refData = $db->lastInsertRowID();
 
       $stmt = $db->prepare(
         "INSERT INTO DataDispatch (RefData, RefConnection)" .
         "SELECT :refData as RefData, Ref as RefConnection " .
         "FROM Connection WHERE Key = :key and Ref <> :refConnection");
-      $stmt->bindValue(":refData", $refData, SQLITE3_TEXT);
+      $stmt->bindValue(":refData", $refData, SQLITE3_INTEGER);
       $stmt->bindValue(":key", $key, SQLITE3_TEXT);
-      $stmt->bindValue(":refConnection", $ref, SQLITE3_TEXT);
+      $stmt->bindValue(":refConnection", $ref, SQLITE3_INTEGER);
       $result = $stmt->execute();
-      if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
 
     }
 
@@ -467,12 +484,38 @@ function SendData(
     $stmt->bindValue(":key", $key, SQLITE3_TEXT);
     $stmt->bindValue(":name", $name, SQLITE3_TEXT);
     $result = $stmt->execute();
-    if ($result == false) throw new Exception("query(" . $cmd . ") failed");
+    if ($result == false)
+      throw new Exception("query(" . $stmt->getSQL() . ") failed");
     $row = $result->fetchArray();
     if ($row !== false) {
 
       $ref = $row["Ref"];
+      $stmt = $db->prepare(
+        "SELECT Data.Value FROM Data, DataDispatch " .
+        "WHERE Data.ref = DataDispatch.RefData AND " .
+        "DataDispatch.RefConnection = :ref");
+      $stmt->bindValue(":ref", $ref, SQLITE3_INTEGER);
+      $result = $stmt->execute();
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
+      $res["data"] = array();
+      while ($row = $result->fetchArray())
+        array_push($res["data"], $row);
 
+      $stmt = $db->prepare(
+        "DELETE FROM DataDispatch WHERE RefConnection = :ref");
+      $stmt->bindValue(":ref", $ref, SQLITE3_INTEGER);
+      $result = $stmt->execute();
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
+
+      $stmt = $db->prepare(
+        "DELETE FROM Data WHERE Ref NOT IN (" .
+        "SELECT RefData FROM DataDispatch)");
+      $stmt->bindValue(":ref", $ref, SQLITE3_INTEGER);
+      $result = $stmt->execute();
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
 
     } else {
 
