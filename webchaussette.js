@@ -397,6 +397,7 @@ class WCClient {
         this.message = $("#inpMessage").val();
         $("#inpMessage").val("");
         this.SendDataReq();
+        $("#inpMessage").focus();
         return false;
 
       }
@@ -414,6 +415,7 @@ class WCClient {
       this.message = $("#inpMessage").val();
       $("#inpMessage").val("");
       this.SendDataReq();
+      $("#inpMessage").focus();
 
     } catch (err) {
       console.log(err.stack);
