@@ -148,6 +148,7 @@ class WCClient {
       this.name = "";
       this.key = "";
       this.message = "";
+      this.idxMsg = 0;
 
     } catch (err) {
       console.log(err.stack);
@@ -281,13 +282,11 @@ class WCClient {
           $("#divLoginWait").css("display", "none");
           animateCSS('#divLoginGranted', 'bounceIn');
           $("#divLoginGranted").css("display", "block");
-          $("#divData").empty();
+          $("#divChatMessages").empty();
           animateCSS('#divMessage', 'bounceIn');
           $("#divMessage").css("display", "block");
         });
         this.status = "active";
-        $("#divChatUsers").empty();
-        $("#divChatMessages").empty();
 
       } else if (ret["err"] == 2) {
 
@@ -361,14 +360,20 @@ class WCClient {
         if (datas.length > 0) {
 
           // Add the messages to the DOM
-          for (const [iData, data] of Object.entries(datas)) {
+          for (const [iData, dataTxt] of Object.entries(datas)) {
 
             var divMsg = document.createElement("div");
-            var msg = JSON.parse(data["Value"])
-            var val = document.createTextNode(msg["msg"]);
-            divMsg.append(val);
-            $("#divData").append(divMsg);
-            //animateCSS("#divSession" + session["Ref"], 'bounceIn');
+            divMsg.className = "divMessage divTheirMessage";
+            divMsg.id = "divMsg" + this.idxMsg;
+            var data = JSON.parse(dataTxt)
+            var msg = document.createTextNode(
+              data["user"] + " said: " + data["msg"]);
+            divMsg.append(msg);
+            $("#divChatMessages").append(divMsg);
+            animateCSS("#divMsg" + this.idxMsg, 'bounceIn');
+            $("#divChatMessages").animate(
+              { scrollTop: $("#divChatMessages")[0].scrollHeight}, 1000);
+            this.idxMsg += 1;
 
           }
 
@@ -443,10 +448,21 @@ class WCClient {
       var data = document.createElement("input");
       data.setAttribute("type", "text");
       data.setAttribute("name", "data");
-      var jsonData = {msg: this.message};
+      var jsonData = {msg: this.message, user: this.name};
       data.setAttribute("value", JSON.stringify(jsonData));
       form.appendChild(data);
       HTTPPostRequest(url, form, null);
+
+      var divMsg = document.createElement("div");
+      divMsg.className = "divMessage divMyMessage";
+      divMsg.id = "divMsg" + this.idxMsg;
+      var msg = document.createTextNode(this.message);
+      divMsg.append(msg);
+      $("#divChatMessages").append(divMsg);
+      animateCSS("#divMsg" + this.idxMsg, 'bounceIn');
+      $("#divChatMessages").animate(
+        { scrollTop: $("#divChatMessages")[0].scrollHeight}, 1000);
+      this.idxMsg += 1;
 
     } catch (err) {
       console.log(err.stack);

@@ -39,10 +39,8 @@ session_start();
       </div>
       <div id="divLoginGranted" class="loginStatus" style="display:none;">
         <div>You're connected! Type a message and send it with shift+enter.</div>
-        <div id="divChatUsers"></div>
         <div id="divChatMessages"></div>
         <div id="divMessage">
-          <div id="divData"></div>
           <input id="inpMessage" type="text" onkeypress="InpMessageKeyPress(event);"><br>
           <input type="button" value="Send" onClick="SendMessageClick();">
         </div>

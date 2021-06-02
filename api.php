@@ -218,19 +218,34 @@ function AcceptRequest(
   try {
 
     // Create the connection
-    $cmd = "INSERT INTO Connection (Key, Name) VALUES (";
-    $cmd .= "(SELECT Key FROM RequestConnection WHERE Ref = '" . $ref . "'),";
-    $cmd .= "(SELECT Name FROM RequestConnection WHERE Ref = '" . $ref . "'))";
-    $success = $db->exec($cmd);
-    if ($success == false)
-      throw new Exception("exec() failed for " . $cmd);
-
+    
+    $cmd = "SELECT Key, Name FROM RequestConnection WHERE Ref = " . $ref;
+    $rows = $db->query($cmd);
+    if ($rows == false) throw new Exception("query(" . $cmd . ") failed");
+    $row = $rows->fetchArray();
+    $stmt = $db->prepare(
+      "INSERT INTO Connection (Key, Name) VALUES (:key, :name)");
+    $stmt->bindValue(":key", $row["Key"], SQLITE3_TEXT);
+    $stmt->bindValue(":name", $row["Name"], SQLITE3_TEXT);
+    $result = $stmt->execute();
+      if ($result == false)
+        throw new Exception("query(" . $stmt->getSQL() . ") failed");
 
     // Delete the request
     $cmd = "DELETE FROM RequestConnection WHERE Ref = '" . $ref . "'";
     $success = $db->exec($cmd);
     if ($success == false)
       throw new Exception("exec() failed for " . $cmd);
+
+    // Add a message to let everyone knows they have a new friend
+    $data = array();
+    $data["user"] = "the server";
+    $data["msg"] = $row["Name"] . " has joined the session.";
+    ReceiveData(
+      $db,
+      $row["Key"],
+      $row["Name"],
+      json_encode($data));
 
   } catch (Exception $e) {
 
@@ -500,7 +515,7 @@ function SendData(
         throw new Exception("query(" . $stmt->getSQL() . ") failed");
       $res["data"] = array();
       while ($row = $result->fetchArray())
-        array_push($res["data"], $row);
+        array_push($res["data"], $row["Value"]);
 
       $stmt = $db->prepare(
         "DELETE FROM DataDispatch WHERE RefConnection = :ref");
