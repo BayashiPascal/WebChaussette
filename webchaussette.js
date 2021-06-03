@@ -157,7 +157,7 @@ class WCClient {
 
   ConnectionReq(name, key) {
 
-    console.log("ConnectionReq " + name + " " + key);
+    // console.log("ConnectionReq " + name + " " + key);
 
     this.name = name;
     this.key = key;
@@ -195,7 +195,7 @@ class WCClient {
   ConnectionCb(ret) {
     try {
 
-      console.log("ConnectionCb " + JSON.stringify(ret));
+      // console.log("ConnectionCb " + JSON.stringify(ret));
 
       if (ret["err"] != 0) {
 
@@ -243,7 +243,7 @@ class WCClient {
   ConnectionStatusReq() {
     try {
 
-      console.log("ConnectionStatusReq");
+      // console.log("ConnectionStatusReq");
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -274,7 +274,7 @@ class WCClient {
   ConnectionStatusCb(ret) {
     try {
 
-      console.log("ConnectionStatusCb " + JSON.stringify(ret));
+      // console.log("ConnectionStatusCb " + JSON.stringify(ret));
 
       if (ret["err"] == 0) {
 
@@ -309,7 +309,7 @@ class WCClient {
 
     try {
 
-      console.log("RecDataReq");
+      // console.log("RecDataReq");
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -341,7 +341,7 @@ class WCClient {
 
     try {
 
-      console.log("RecDataReq " + JSON.stringify(ret));
+      // console.log("RecDataReq " + JSON.stringify(ret));
       if (ret["err"] == 1) {
 
         animateCSS('#divMessage', 'bounceOut').then((message) => {
@@ -427,7 +427,7 @@ class WCClient {
 
     try {
 
-      console.log("SendDataReq " + this.message);
+      // console.log("SendDataReq " + this.message);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -535,7 +535,7 @@ class WCServer {
   GetSessionReq() {
     try {
 
-      console.log("GetSessionReq " + this.sessionKey);
+      // console.log("GetSessionReq " + this.sessionKey);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -556,7 +556,7 @@ class WCServer {
   GetSessionCb(ret) {
     try {
 
-      console.log("GetSessionCb " + JSON.stringify(ret));
+      // console.log("GetSessionCb " + JSON.stringify(ret));
 
       // Memorise the sessions
       this.sessions = ret;
@@ -628,7 +628,7 @@ class WCServer {
   GetPendingReq() {
     try {
 
-      console.log("GetPendingReq " + this.sessionKey);
+      // console.log("GetPendingReq " + this.sessionKey);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -653,7 +653,7 @@ class WCServer {
   GetPendingCb(ret) {
     try {
 
-      console.log("GetPendingCb " + JSON.stringify(ret));
+      // console.log("GetPendingCb " + JSON.stringify(ret));
 
       // Memorise the pending requests
       this.pendings = ret;
@@ -699,7 +699,7 @@ class WCServer {
   PendingAcceptReq(pendingRef) {
     try {
 
-      console.log("PendingAcceptReq " + pendingRef);
+      // console.log("PendingAcceptReq " + pendingRef);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -729,7 +729,7 @@ class WCServer {
   PendingRejectReq(pendingRef) {
     try {
 
-      console.log("PendingRejectReq " + pendingRef);
+      // console.log("PendingRejectReq " + pendingRef);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -760,7 +760,7 @@ class WCServer {
   GetConnectionReq() {
     try {
 
-      console.log("GetConnectionReq " + this.sessionKey);
+      // console.log("GetConnectionReq " + this.sessionKey);
 
       var url = "./api.php";
       var form = document.createElement("form");
@@ -785,7 +785,7 @@ class WCServer {
   GetConnectionCb(ret) {
     try {
 
-      console.log("GetConnectionCb " + JSON.stringify(ret));
+      // console.log("GetConnectionCb " + JSON.stringify(ret));
 
       // Memorise the connection requests
       this.connections = ret;
@@ -874,7 +874,7 @@ class WCServer {
     try {
 
       var sessionKey = this.GetSessionKey(sessionRef);
-      console.log("SessionCloseReq " + sessionKey);
+      // console.log("SessionCloseReq " + sessionKey);
 
       var url = "./api.php";
       var form = document.createElement("form");
